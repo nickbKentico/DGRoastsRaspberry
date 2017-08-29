@@ -1,0 +1,42 @@
+#!/usr/bin/python2.7
+import json, time, requests
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+counter = 1
+
+while True:
+    response = requests.get("https://deliver.kenticocloud.com/8b92ac89-4296-4f4f-83c3-8dd8c7625245/items?system.type=slide")
+    #print(response.text)
+    cloudItems = response.json()
+
+    elements = []
+   
+    print(counter)
+     
+    elements.append(dict(
+        title = cloudItems['items'][0]['elements']['slide_title']['value'],
+        overlay = cloudItems['items'][0]['elements']['simple_overlay_text']['value'],
+        background = cloudItems['items'][0]['elements']['slide_image']['value'][0]['name'],
+        backgroundColor = cloudItems['items'][0]['elements']['background_color']['value'][0]['codename'],
+        ))
+
+    exisitingJson = json.loads(open('CloudData.json').read())
+    
+    a, b =json.dumps(elements, sort_keys=True),json.dumps(exisitingJson, sort_keys=True)
+    
+    if a != b:
+         #download image
+        image = requests.get(cloudItems['items'][0]['elements']['slide_image']['value'][0]['url'])
+        with open(cloudItems['items'][0]['elements']['slide_image']['value'][0]['name'],"wb") as f:
+            f.write(image.content)
+            f.close()
+        #End Download Image
+        with open('CloudData.json','w') as outfile:
+            json.dump(elements,outfile)
+            print(elements)
+   # cloudSocket = "KenticoCloud/update:%s"
+   # SendLoad = cloudSocket % data
+    
+)
+    counter = counter + 1
+    time.sleep(15)
