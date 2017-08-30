@@ -1,0 +1,99 @@
+gl.setup(NATIVE_WIDTH, NATIVE_HEIGHT)
+
+local json = require "json"
+local font = resource.load_font "font.ttf"
+local current_image = resource.load_image("image.jpg")
+local cloud_img_name = ""
+local elements = {}
+local counter = 0
+local cache = false
+
+--local socket = require 'socket'
+
+node.alias "KenticoCloud"
+
+local lines = {}
+
+function wrap(str, limit, indent, indent1)
+    indent = indent or ""
+    indent1 = indent1 or indent
+    limit = limit or 72
+    function wrap_parargraph(str)
+        local here = 1-#indent1
+        return indent1..str:gsub("(%s+)()(%S+)()", function(sp, st, word, fi)
+            if fi-here > limit then
+                here = st - #indent
+                return "\n"..indent..word
+            end
+        end)
+    end
+    local splitted = {}
+    for par in string.gmatch(str, "[^\n]+") do
+        local wrapped = wrap_parargraph(par)
+        for line in string.gmatch(wrapped, "[^\n]+") do
+            splitted[#splitted + 1] = line
+        end
+    end
+    return splitted
+end
+
+local CloudData
+util.file_watch("CloudData.json", function(content)
+	elements = json.decode(content)
+	
+	for idx, element in ipairs(elements) do
+		local image = string.format("%s", element.image)
+		cloud_img_name = image
+	end
+	current_image = resource.load_image(cloud_img_name)
+	
+end)
+
+
+function node.render()
+ itemnumber = 0
+     for idx, element in ipairs(elements) do
+        util.set_interval(20, WriteSlide(element))
+     itemnumber = itemnumber + 1   
+     end   
+    
+end
+
+function WriteSlide(element)
+        local y = 300
+	--local image = string.format("%s", element.image)
+	--cloud_img_name = image	
+        current_image = resource.load_image(cloud_img_name)
+        
+  	current_image:draw(0,0,1080,1080)
+ 	font:write(WIDTH / 2, 10, "New Brews", 100, 1,1,1,1)
+	--font:write(30, 110, "Demo Time", 100, .5,.5,.5,1)
+        local productName = string.format("%s", element.product_name)
+        font:write(WIDTH / 2, y, productName, 50, 1,1,.3,1)
+    	y = y + 50
+
+	local price = "$" .. string.format("%s" ,element.price) 
+	font:write(WIDTH / 2 ,y, price, 50,1,1,1,1)
+	y = y +100
+
+        local shortDescription = string.format("%s", element.short_description)
+	shortDescription = shortDescription:gsub("%b<>","")
+	lines = wrap(shortDescription, 35)
+	
+	local size = 50	
+    	for i, line in ipairs(lines) do
+        	font:write(WIDTH / 2, y, line, size, 1, 1, 1, 1)
+        	y = y + size
+    	end	
+	y = y + size
+	
+	local farm = "Farm: " .. string.format("%s",element.farm)
+	farm = farm:gsub("%b<>","")
+	font:write(WIDTH /2, y, farm, size, 1,1,1,1)
+	y = y + size + size
+        
+	local country = string.format("%s",element.country)
+	font:write(WIDTH / 2,y, "Country: " .. country, size,1,1,1,1)
+
+        --socket.sleep(10)
+end
