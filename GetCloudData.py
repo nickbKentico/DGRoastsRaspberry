@@ -1,24 +1,37 @@
 #!/usr/bin/python2.7
-import socket, json, time, requests
+import socket, json, time, requests, locale
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 counter = 1
-project_id = "dfc80764-b4d6-4554-aa5f-805c3b2dbef1"
+error = False
+project_id = "84ebeafd-cad0-47e5-811a-789df7a43ad0"
+locale.setlocale( locale.LC_ALL, "" )
 while True:
-    print "Getting Data From Cloud"
-    response = requests.get("https://deliver.kenticocloud.com/" + project_id + "/items?system.type=coffee")
-    print "got the data"
-    cloudItems = response.json()
-    #print(cloudItems)
+    internetError = False
+    print ("Getting Data From Cloud")
+    try:
+        response = requests.get("https://deliver.kenticocloud.com/" + project_id + "/items?system.type=coffee")
+        print ("got the data")
+        cloudItems = response.json()
+        with open('CloudDataFull.json','w') as outfile:
+            json.dump(cloudItems,outfile)
+        print("CLoud Data Retrieved and stored")
+    except:
+        error = True
+        internetError = True
+        print("Error Getting Items From Cloud")
+        cloudItems = json.loads(open('CloudDataFull.json').read())
+    print(cloudItems)
       
     # elements in the "Coffee" content type
     # Coffee Codename: 'coffee'
     # System: 
     #   name                    i['system']['name']
     # Elements: 
-    #   product_name            i['elements']['product_name']['value']
+    #   coffee_name            i['elements']['coffee_name']['value']
     #   price                   i['elements']['price']['value']
-    #   image[]                 i['elements']['image']['value'][0]['name']
+    #   photo[]                 i['elements']['photo']['value'][0]['name']
+    #   Promotion               i['elements']['promotion']['value'][0]['name']
     #   short_description       
     #   long_description        
     #   product_status (tax)
@@ -27,38 +40,55 @@ while True:
     #   variety
     #   processing
     #   altitude
-    print "Jumping into a loop of data"
+    print ("Jumping into a loop of data")
     for i in cloudItems['items']:
         elements = []
+        convertedPrice = locale.currency(i['elements']['price']['value'], grouping=True)
+        haspromotion = ""
+        hasprocessing = ""
+        try:
+            haspromotion = i['elements']['promotion']['value'][0]['name']
+        except:
+            error = True
+        try:
+            hasprocessing = i['elements']['processing']['value'][0]['name']
+        except:
+            error = True
         elements.append(dict(
-            product_name = i['elements']['product_name']['value'],
-            price = i['elements']['price']['value'],
-            image = i['elements']['image']['value'][0]['name'],
+            coffee_name = i['elements']['coffee_name']['value'],
+            photo = i['elements']['photo']['value'][0]['name'],
             short_description = i['elements']['short_description']['value'],
-            #long_description = i['elements']['long_description']['value'],
-           # product_status (tax)
             farm = i['elements']['farm']['value'],
             country = i['elements']['country']['value'],
-            #variety = i['elements']['variety']['value'],
-            #processing = i['elements']['processing']['value'],
-            #altitude = i['elements']['altitude']['value'],
+            variety = i['elements']['variety']['value'],
+            price = convertedPrice,
+            promotion = haspromotion,
+            processing = hasprocessing,
+            wifiError = internetError,
 	    ))
 
+        #convertedPrice = locale.currency(i['elements']['price']['value'], grouping=True)
+        #elements.append(dict(
+        #     price = convertedPrice,
+        #     ))
         exisitingJson = json.loads(open('CloudData.json').read())
-        print "I have the item as JSON"
+        print ("I have the item as JSON")
         a, b =json.dumps(elements, sort_keys=True),json.dumps(exisitingJson, sort_keys=True)
         #for i in cloudItems['items']:
                 #if a != b:
                  #download image
-        print "I am downloading an image"
-        image = requests.get(i['elements']['image']['value'][0]['url'])
-        with open(i['elements']['image']['value'][0]['name'],"wb") as f:
-            f.write(image.content)
-            f.close()
+        print ("I am downloading an image")
+        try:
+            image = requests.get(i['elements']['photo']['value'][0]['url'])
+            with open(i['elements']['photo']['value'][0]['name'],"wb") as f:
+                f.write(image.content)
+                f.close()
                 #End Download Image
+        except:
+            error = True
         with open('CloudData.json','w') as outfile:
             json.dump(elements,outfile)
-        print "The image is downloaded"
+        print ("The image is downloaded")
         elements = json.dumps(elements, ensure_ascii=False)
         print(elements)
 
@@ -68,7 +98,7 @@ while True:
         SendLoad = coffeeUpdate % elements
     
         sock.sendto(SendLoad.encode("utf8"), ('127.0.0.1', 4444))
-        print "The load is sent!"
+        print ("The load is sent!")
         counter = counter + 1
-        print counter
+        print (counter)
         time.sleep(15)
